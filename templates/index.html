@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Search</title>
+    <style>
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 16px;
+            margin: 16px 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .store-card {
+          border: 2px solid #007BFF;
+          border-radius: 10px;
+          padding: 16px;
+          margin: 16px 0;
+          background: #f8f9fa;
+        }
+
+        .product-card {
+         border: 1px solid #ccc;
+         border-radius: 5px;
+         padding: 10px;
+         margin: 8px 0;
+         background: white;
+         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .product-card h3 {
+          color: #333;
+          margin-bottom: 4px;
+        }
+        .store-block {
+         background-color: #f8f9fa;
+         border-left: 4px solid #007bff;
+        }
+
+        .item-count {
+          background: #007bff;
+          color: white;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 0.9em;
+        }
+
+        .card img {
+            width: 100px;
+            margin-right: 16px;
+        }
+        .card h2 {
+            margin: 0;
+        }
+        .card p {
+            margin: 8px 0;
+        }
+        .card a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        
+        /* New styles for the list input */
+        #itemList {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        .input-container {
+            margin-bottom: 20px;
+        }
+        .instructions {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search for Products</h1>
+    <form id="searchForm">
+        <div class="input-container">
+            <label for="itemList">Enter items to search (one per line):</label>
+            <textarea id="itemList" name="itemList" placeholder="Enter one product per line"></textarea>
+            <p class="instructions">Press Enter to add a new item. Click the button below when ready to search.</p>
+        </div>
+        <button type="submit">Search All Items</button>
+    </form>
+    <div id="results">
+        <!-- Results will be inserted here -->
+    </div>
+
+    <script>
+        document.getElementById('searchForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const itemListText = document.getElementById('itemList').value;
+            const items = itemListText.split('\n')
+              .map(item => item.trim())
+              .filter(item => item.length > 0);
+
+            if (items.length === 0) {
+              document.getElementById('results').innerHTML = '<p class="error">Please enter at least one item to search.</p>';
+               return;
+            } 
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Loading suggestions...</p>';
+
+            // Step 1: Ask server for suggestions
+        try {
+         const suggestionResponse = await fetch('/suggestions', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: items })
+           });
+
+          const suggestionData = await suggestionResponse.json();
+
+          // Show options to user
+          resultsDiv.innerHTML = '';
+          const form = document.createElement('form');
+          form.id = 'finalSelectionForm';
+
+          for (const item in suggestionData) {
+              const label = document.createElement('label');
+              label.textContent = `What type of "${item}" do you want?`;
+              const select = document.createElement('select');
+              select.name = item;
+              select.style.marginBottom = '10px';
+              select.style.display = 'block';
+
+              suggestionData[item].forEach(option => {
+                  const opt = document.createElement('option');
+                 opt.value = option;
+                 opt.textContent = option;
+                  select.appendChild(opt);
+                });
+
+              form.appendChild(label);
+              form.appendChild(select);
+            }
+
+            const submitButton = document.createElement('button');
+            submitButton.textContent = 'Search Based on Selection';
+            submitButton.type = 'submit';
+            form.appendChild(submitButton);
+            resultsDiv.appendChild(form);
+
+           form.onsubmit = async function(e) {
+               e.preventDefault();
+               const finalItems = Array.from(form.elements)
+                 .filter(el => el.tagName === 'SELECT')
+                 .map(el => el.value);
+
+               resultsDiv.innerHTML = '<p>Loading final results...</p>';
+
+               const response = await fetch('/search', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ items: finalItems })
+               });
+
+               const stores = await response.json();
+               resultsDiv.innerHTML = '';
+
+              if (stores.length === 0) {
+                 resultsDiv.innerHTML = '<p class="error">No matching products found.</p>';
+                  return;
+                }
+
+             stores.forEach(store => {
+                  const storeDiv = document.createElement('div');
+                  storeDiv.className = 'store-card';
+                  storeDiv.innerHTML = `
+                      <h2>${store.Store} 
+                         <span class="item-count">${store.Items.length} items</span>
+                         <span style="float: right; color: #28a745;">
+                             Total: $${store.Total.toFixed(2)}
+                         </span>
+                      </h2>
+                   `;
+
+                   store.Items.forEach(item => {
+                      storeDiv.innerHTML += `
+                          <div class="product-card">
+                             <h3>${item.Item}</h3>
+                             <p>${item.ProductName} - $${item.Price.toFixed(2)}</p>
+                             <a href="${item.Link}" target="_blank">View Product</a>
+                          </div>
+                       `;
+                  });
+
+                  resultsDiv.appendChild(storeDiv);
+               });
+           };
+          } catch (error) {
+              console.error('Suggestion Error:', error);
+              resultsDiv.innerHTML = '<p class="error">Something went wrong. Please try again.</p>';
+            }
+
+        };
+    </script>
+</body>
+</html>
