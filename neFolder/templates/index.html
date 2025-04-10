@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Search</title>
+    <style>
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 16px;
+            margin: 16px 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .store-card {
+          border: 2px solid #007BFF;
+          border-radius: 10px;
+          padding: 16px;
+          margin: 16px 0;
+          background: #f8f9fa;
+        }
+
+        .product-card {
+         border: 1px solid #ccc;
+         border-radius: 5px;
+         padding: 10px;
+         margin: 8px 0;
+         background: white;
+         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .product-card h3 {
+          color: #333;
+          margin-bottom: 4px;
+        }
+        .store-block {
+         background-color: #f8f9fa;
+         border-left: 4px solid #007bff;
+        }
+
+        .item-count {
+          background: #007bff;
+          color: white;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 0.9em;
+        }
+
+
+        .card img {
+            width: 100px;
+            margin-right: 16px;
+        }
+        .card h2 {
+            margin: 0;
+        }
+        .card p {
+            margin: 8px 0;
+        }
+        .card a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search for Products</h1>
+    <form id="searchForm">
+        <input type="text" id="query" name="query" placeholder="Enter product name...">
+        <button type="submit">Search</button>
+    </form>
+    <div id="results">
+        <!-- Results will be inserted here -->
+    </div>
+
+    <script>
+        document.getElementById('searchForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const query = document.getElementById('query').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Loading...</p>'; 
+    
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `query=${encodeURIComponent(query)}`
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+    
+                const stores = await response.json();
+                resultsDiv.innerHTML = '';
+    
+                if (stores.length === 0) {
+                    resultsDiv.innerHTML = '<p class="error">No matching products found.</p>';
+                    return;
+                }
+    
+                stores.forEach(store => {
+                 const storeDiv = document.createElement('div');
+                 storeDiv.className = 'store-card';
+                 storeDiv.innerHTML = `
+                     <h2>${store.Store} 
+                         <span class="item-count">${store.Items.length} items</span>
+                         <span style="float: right; color: #28a745;">
+                             Total: $${store.Total.toFixed(2)}
+                          </span>
+                      </h2>
+                    `;
+    
+                store.Items.forEach(item => {
+                  storeDiv.innerHTML += `
+                     <div class="product-card">
+                         <h3>${item.Item}</h3>
+                         <p>${item.ProductName} - $${item.Price.toFixed(2)}</p>
+                         <a href="${item.Link}" target="_blank">View Product</a>
+                     </div>
+                   `;
+               });
+    
+               resultsDiv.appendChild(storeDiv);
+            });
+            } catch (error) {
+                console.error('Error fetching search results:', error);
+                resultsDiv.innerHTML = '<p class="error">Error loading results. Please try again.</p>';
+            }
+        };
+    </script>
+</body>
+</html>
