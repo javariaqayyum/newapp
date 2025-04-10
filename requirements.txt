@@ -2,4 +2,3 @@ Flask
 pymongo
 openai
 pandas
-collections
