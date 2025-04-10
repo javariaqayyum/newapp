@@ -205,4 +205,4 @@ Only format for clarity and consistency.
         return suggestions  # Return the original suggestions if there's an error
     
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
